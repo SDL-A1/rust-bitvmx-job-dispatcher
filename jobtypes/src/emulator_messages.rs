@@ -165,6 +165,7 @@ impl DispatcherMessage for EmulatorJobType {
                 stage,
                 counterparty_hashes,
                 counterparty_decision,
+                final_trace,
                 command_file,
                 fail_config,
             ) => {
@@ -194,6 +195,10 @@ impl DispatcherMessage for EmulatorJobType {
                 if let Some(decision) = counterparty_decision {
                     args.push("--counterparty-decision".to_string());
                     args.push(decision.to_string());
+                }
+
+                if *final_trace {
+                    args.push("--final-trace".to_string());
                 }
 
                 if let Some(fc) = fail_config {
@@ -412,7 +417,15 @@ impl DispatcherMessage for EmulatorJobType {
             EmulatorJobType::VerifierChooseSegment(_, _, _, _, _, _, _) => {
                 "VerifierChooseSegmentResult"
             }
-            EmulatorJobType::FullDuplexStage(_, _, _, _, _, _, _, _) => "FullDuplexStageResult",
+            // The trailing stage also produces the trace for the disputed
+            // step, so it answers with the final-trace result.
+            EmulatorJobType::FullDuplexStage(_, _, _, _, _, _, final_trace, _, _) => {
+                if *final_trace {
+                    "FullDuplexFinalTraceResult"
+                } else {
+                    "FullDuplexStageResult"
+                }
+            }
             EmulatorJobType::ProverFinalTrace(_, _, _, _, _) => "ProverFinalTraceResult",
             EmulatorJobType::VerifierChooseChallenge(_, _, _, _, _, _, _, _) => {
                 "VerifierChooseChallengeResult"
@@ -476,9 +489,10 @@ pub enum EmulatorJobType {
         u8,
         Vec<String>,
         Option<u32>,
+        bool,
         String,
         Option<FailConfiguration>,
-    ), // pdf, checkpoint_path, is_prover, stage, counterparty_hashes, counterparty_decision, command_file, fail_config
+    ), // pdf, checkpoint_path, is_prover, stage, counterparty_hashes, counterparty_decision, final_trace, command_file, fail_config
     ProverFinalTrace(String, String, u32, String, Option<FailConfiguration>), // pdf, checkpoint_prover_path, v_decision, command_file, fail_config_prover
     VerifierChooseChallenge(
         String,
@@ -529,7 +543,9 @@ impl EmulatorJobType {
             EmulatorJobType::VerifierChooseSegment(_, base, _, _, _, _, _) => {
                 Ok(Some(base.clone()))
             }
-            EmulatorJobType::FullDuplexStage(_, base, _, _, _, _, _, _) => Ok(Some(base.clone())),
+            EmulatorJobType::FullDuplexStage(_, base, _, _, _, _, _, _, _) => {
+                Ok(Some(base.clone()))
+            }
             EmulatorJobType::ProverFinalTrace(_, base, _, _, _) => Ok(Some(base.clone())),
             EmulatorJobType::VerifierChooseChallenge(_, base, _, _, _, _, _, _) => {
                 Ok(Some(base.clone()))
